@@ -68,7 +68,7 @@ impl eframe::App for TemplateApp {
             ui.heading("Side Panel");
 
             ui.horizontal(|ui| {
-                ui.label("Write something: ");
+                ui.label("Write some shit: ");
                 ui.text_edit_singleline(label);
             });
 
