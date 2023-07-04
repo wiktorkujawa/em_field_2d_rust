@@ -5,13 +5,23 @@
 #[cfg(not(target_arch = "wasm32"))]
 fn main() -> eframe::Result<()> {
     // Log to stdout (if you run with `RUST_LOG=debug`).
+
+    use egui::{Style, Visuals};
     tracing_subscriber::fmt::init();
 
     let native_options = eframe::NativeOptions::default();
     eframe::run_native(
         "eframe template",
         native_options,
-        Box::new(|cc| Box::new(eframe_template::TemplateApp::new(cc))),
+        Box::new(|cc| {
+            let style = Style {
+                visuals: Visuals::dark(),
+                ..Style::default()
+            };
+            cc.egui_ctx.set_style(style);
+
+            Box::new(eframe_template::TemplateApp::new(cc))
+        })
     )
 }
 
@@ -19,6 +29,8 @@ fn main() -> eframe::Result<()> {
 #[cfg(target_arch = "wasm32")]
 fn main() {
     // Make sure panics are logged using `console.error`.
+
+    use egui::{ Style, Visuals };
     console_error_panic_hook::set_once();
 
     // Redirect tracing to console.log and friends:
@@ -27,12 +39,19 @@ fn main() {
     let web_options = eframe::WebOptions::default();
 
     wasm_bindgen_futures::spawn_local(async {
-        eframe::start_web(
-            "the_canvas_id", // hardcode it
-            web_options,
-            Box::new(|cc| Box::new(eframe_template::TemplateApp::new(cc))),
-        )
-        .await
-        .expect("failed to start eframe");
+        eframe
+            ::start_web(
+                "the_canvas_id", // hardcode it
+                web_options,
+                Box::new(|cc| {
+                    let style = Style {
+                        visuals: Visuals::dark(),
+                        ..Style::default()
+                    };
+                    cc.egui_ctx.set_style(style);
+                    Box::new(eframe_template::TemplateApp::new(cc))
+                })
+            ).await
+            .expect("failed to start eframe");
     });
 }

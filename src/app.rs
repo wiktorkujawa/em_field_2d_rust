@@ -1,21 +1,28 @@
+use egui::{ ScrollArea, RichText };
+
+use crate::{ structs::{ Route, Interface, CalcResult }, enums::LineType, components };
+
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
 pub struct TemplateApp {
     // Example stuff:
-    label: String,
-
     // this how you opt-out of serialization of a member
-    #[serde(skip)]
-    value: f32,
+    routes: Vec<Route>,
+    interface: Interface,
+    result: CalcResult
+    // #[serde(skip)]
+    // routes: Vec<Route>,
+    // interface: Interface,
 }
 
 impl Default for TemplateApp {
     fn default() -> Self {
         Self {
             // Example stuff:
-            label: "Hello World!".to_owned(),
-            value: 2.7,
+            routes: vec![],
+            interface: Interface::default(),
+            result: CalcResult::default()
         }
     }
 }
@@ -45,7 +52,7 @@ impl eframe::App for TemplateApp {
     /// Called each time the UI needs repainting, which may be many times per second.
     /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        let Self { label, value } = self;
+        let Self { routes, interface, result } = self;
 
         // Examples of how to create different panels and windows.
         // Pick whichever suits you.
@@ -65,42 +72,70 @@ impl eframe::App for TemplateApp {
         });
 
         egui::SidePanel::left("side_panel").show(ctx, |ui| {
-            ui.heading("Side Panel");
+            ScrollArea::vertical().show(ui, |ui| {
 
-            ui.horizontal(|ui| {
-                ui.label("Write some shit: ");
-                ui.text_edit_singleline(label);
-            });
+                egui::widgets::global_dark_light_mode_buttons(ui);
 
-            ui.add(egui::Slider::new(value, 0.0..=10.0).text("value"));
-            if ui.button("Increment").clicked() {
-                *value += 1.0;
-            }
+                components::line_choice(ui, interface);
+                components::electric_details(ui, interface);
+                components::phase_order_choice(ui, interface);
+                if matches!(interface.line_type, LineType::PowerLine) {
+                    components::bundle_specification(ui, interface);
+                }
+                components::arrangement_method(ui, interface);
+                components::coordinates(ui, interface);
 
-            ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
-                ui.horizontal(|ui| {
-                    ui.spacing_mut().item_spacing.x = 0.0;
-                    ui.label("powered by ");
-                    ui.hyperlink_to("egui", "https://github.com/emilk/egui");
-                    ui.label(" and ");
-                    ui.hyperlink_to(
-                        "eframe",
-                        "https://github.com/emilk/egui/tree/master/crates/eframe",
-                    );
-                    ui.label(".");
+                ui.separator();
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                    if ui.add(egui::Button::new(RichText::new("Add route").size(20.0))).clicked() {
+                        let route = Route::new(interface);
+                        routes.push(route);
+                    }
+                });
+
+                if routes.len() > 0 {
+                    components::routes(ui, routes);
+                }
+
+                ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
+                    ui.horizontal(|ui| {
+                        ui.spacing_mut().item_spacing.x = 0.0;
+                        ui.label("powered by ");
+                        ui.hyperlink_to("egui", "https://github.com/emilk/egui");
+                        ui.label(" and ");
+                        ui.hyperlink_to(
+                            "eframe",
+                            "https://github.com/emilk/egui/tree/master/crates/eframe"
+                        );
+                        ui.label(".");
+                    });
                 });
             });
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
+            ui.set_min_width(600.0);
             // The central panel the region left after adding TopPanel's and SidePanel's
+            components::plot(ui, result);
 
-            ui.heading("eframe template");
-            ui.hyperlink("https://github.com/emilk/eframe_template");
-            ui.add(egui::github_link_file!(
-                "https://github.com/emilk/eframe_template/blob/master/",
-                "Source code."
-            ));
+            ui.group(|ui| {
+                ui.horizontal(|ui| {
+                    let Interface { x_range, y_range, .. } = interface;
+
+                    components::range_inputs(ui, *x_range, *y_range);
+
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if
+                            ui
+                                .add(egui::Button::new(RichText::new("Generate plot").size(20.0)))
+                                .clicked()
+                        {
+                            result.new(*x_range, *y_range, routes);
+                        }
+                    });
+                });
+            });
+
             egui::warn_if_debug_build(ui);
         });
 
